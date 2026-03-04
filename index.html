@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>💣 Bomb Countdown • Scan Quest (Mobile‑Safe)</title>
+  <style>
+    :root{ --bg:#000; --fg:#e74c3c; --brand:#00ff88; --text:#f2f2f2; --soft:#222; }
+    body { background: var(--bg); color: var(--fg); font-family: 'Courier New', monospace; text-align:center; overflow:hidden; margin:0; }
+    header { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid #111; }
+    header img { height:40px; }
+    header .brand { color: var(--brand); letter-spacing:1px; font-weight:bold; }
+    main { padding: 12px 16px; }
+    h1 { font-size: clamp(26px, 4vw, 40px); margin: 16px 0 6px; }
+    #timer { font-size: clamp(48px, 10vw, 80px); margin: 6px 0 10px; }
+    input, button { font-size: 1.05em; padding: 12px 14px; margin: 6px; border-radius: 10px; border: 1px solid var(--soft); }
+    input { background:#111; color:#fff; width:min(520px, 90vw); }
+    button { background: var(--fg); color:#fff; cursor:pointer; border: none; }
+    #message { font-size: 1.1em; margin-top: 10px; min-height: 1.4em; color: var(--text); }
+    #flash { position: fixed; inset:0; background: var(--fg); opacity:0; pointer-events:none; }
+
+    #overlay {
+      position: fixed; inset: 0; z-index: 10;
+      background: radial-gradient(ellipse at center, rgba(0,0,0,.9) 0%, rgba(0,0,0,.98) 100%);
+      display:flex; align-items:center; justify-content:center; flex-direction:column; gap:20px; color:#fff; padding:20px;
+    }
+    #cta {
+      font-size: clamp(20px, 5.2vw, 44px);
+      padding: 18px 28px; border-radius: 999px; border: 2px solid var(--brand);
+      background: #111; color: var(--brand); text-transform: uppercase; letter-spacing: 1px;
+      animation: pulse 1s infinite, glow 2s ease-in-out infinite alternate;
+      width: min(90vw, 520px);
+    }
+    @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(0,255,136,.6)} 70%{box-shadow:0 0 0 18px rgba(0,255,136,0)} 100%{box-shadow:0 0 0 0 rgba(0,255,136,0)} }
+    @keyframes glow { from { text-shadow: 0 0 8px rgba(0,255,136,.5);} to { text-shadow: 0 0 16px rgba(0,255,136,.9);} }
+    #status { font-size: 13px; color:#bbb; min-height:1.2em; text-align:center; max-width: 700px; }
+  </style>
+</head>
+<body>
+  <div id="flash"></div>
+  <header>
+    <img src="logo.svg" alt="Logo">
+    <div class="brand">Scan Quest</div>
+  </header>
+  <div id="overlay">
+    <button id="cta">⚠️ Click to Enter Answer ⚠️</button>
+    <div id="status">If your phone is on Silent mode, flip the switch off.</div>
+  </div>
+  <main>
+    <h1>💣 Bomb Countdown 💣</h1>
+    <div id="timer">03:00</div>
+    <p style="color:var(--text)">Enter the deactivation code below to secure the area.</p>
+    <div style="max-width:520px;margin:0 auto;">
+  <input id="q1" type="text" placeholder="Q1: Identify the most likely diagnosis" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+  <input id="q2" type="text" placeholder="Q2: What is the main anatomical structure involved?" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+  <input id="q3" type="text" placeholder="Q3: What is the anatomical term for the fleshy mound at the base of the thumb?" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+</div>
+<button id="deactivateBtn">Submit answers</button>
+    <p id="message"></p>
+  </main>
+  <script>
+    let durationSeconds = 120;
+    const answers = {
+  q1: ["carpal tunnel", "carpal tunnel syndrome"],
+  q2: ["median nerve", "the median nerve"],
+  q3: ["thenar eminence"]
+};
+    const nextUrl = "/success.html";
+    const localMusic = "audio/countdown.mp3";
+
+    const timerEl = document.getElementById('timer');
+    const msgEl   = document.getElementById('message');
+    const flash   = document.getElementById('flash');
+    const overlay = document.getElementById('overlay');
+    const ctaBtn  = document.getElementById('cta');
+    const statusEl= document.getElementById('status');
+
+    let ctx, masterGain, procGain, musicGain, musicSource, musicBuffer;
+    let tickId = null, procNodes = [];
+
+    function setStatus(t){ statusEl.textContent = t || ""; }
+
+    function ensureCtx() {
+      if (!ctx) {
+        ctx = new (window.AudioContext || window.webkitAudioContext)();
+        masterGain = ctx.createGain();
+        masterGain.gain.value = 0.85;
+        masterGain.connect(ctx.destination);
+        procGain  = ctx.createGain(); procGain.gain.value = 0.0; procGain.connect(masterGain);
+        musicGain = ctx.createGain(); musicGain.gain.value = 0.0; musicGain.connect(masterGain);
+      }
+      if (ctx.state === 'suspended') ctx.resume();
+    }
+
+    function unlockPing(){
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = 660;
+      g.gain.value = 0.0001;
+      g.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.05);
+      o.connect(g).connect(procGain);
+      o.start(); o.stop(ctx.currentTime + 0.06);
+    }
+
+    function startProceduralBed(){
+      procGain.gain.linearRampToValueAtTime(0.28, ctx.currentTime + 0.15);
+      const bass = ctx.createOscillator(); bass.type='sawtooth'; bass.frequency.value=80;
+      const bassGain = ctx.createGain(); bassGain.gain.value=0.12;
+      const lfo = ctx.createOscillator(); lfo.type='sine'; lfo.frequency.value=1.2;
+      const lfoGain = ctx.createGain(); lfoGain.gain.value=0.10;
+      lfo.connect(lfoGain).connect(bassGain.gain);
+      bass.connect(bassGain).connect(procGain);
+      bass.start(); lfo.start();
+      procNodes.push(bass, bassGain, lfo, lfoGain);
+      const buffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i=0;i<data.length;i++) data[i] = Math.random()*2-1;
+      const noise = ctx.createBufferSource(); noise.buffer = buffer; noise.loop = true;
+      const band = ctx.createBiquadFilter(); band.type='bandpass'; band.frequency.value=600; band.Q.value=1.5;
+      const noiseGain = ctx.createGain(); noiseGain.gain.value=0.08;
+      noise.connect(band).connect(noiseGain).connect(procGain);
+      noise.start();
+      procNodes.push(noise, band, noiseGain);
+      tickId = setInterval(()=>{
+        const click = ctx.createOscillator();
+        const g = ctx.createGain();
+        click.type='square'; click.frequency.value=1200;
+        g.gain.value=0.0001;
+        g.gain.exponentialRampToValueAtTime(0.4, ctx.currentTime + 0.001);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.08);
+        click.connect(g).connect(procGain);
+        click.start(); click.stop(ctx.currentTime + 0.09);
+      }, 1000);
+    }
+
+    function stopProceduralBed(){
+      if(tickId) clearInterval(tickId);
+      procNodes.forEach(n=>{ try{ n.stop && n.stop(); }catch(e){} try{ n.disconnect && n.disconnect(); }catch(e){} });
+      procNodes = [];
+      procGain.gain.linearRampToValueAtTime(0.0, ctx.currentTime + 0.8);
+    }
+
+    async function loadAndStartMP3(){
+      try {
+        const res = await fetch(localMusic, { cache: 'force-cache' });
+        const arr = await res.arrayBuffer();
+        musicBuffer = await ctx.decodeAudioData(arr);
+        musicSource = ctx.createBufferSource();
+        musicSource.buffer = musicBuffer;
+        musicSource.loop = true;
+        musicSource.connect(musicGain);
+        musicSource.start(0);
+        musicGain.gain.linearRampToValueAtTime(0.85, ctx.currentTime + 0.8);
+        stopProceduralBed();
+        setStatus("Music (MP3) playing.");
+      } catch(e){
+        setStatus("Using procedural soundtrack.");
+      }
+    }
+
+    function stopAllMusic(){
+      try{ musicSource && musicSource.stop(); }catch(e){}
+      stopProceduralBed();
+      musicGain.gain.value = 0;
+      procGain.gain.value = 0;
+    }
+
+    function doFlash(duration=300){
+      flash.style.transition="none";
+      flash.style.opacity="0.9";
+      setTimeout(()=>{ flash.style.transition="opacity .5s ease-out"; flash.style.opacity="0"; }, duration);
+    }
+
+    let countdownId=null, timeLeft=durationSeconds;
+    function renderTime(){
+      const m=Math.floor(timeLeft/60), s=timeLeft%60;
+      timerEl.textContent=`${m}:${s.toString().padStart(2,'0')}`;
+    }
+    function startCountdown(){
+      timeLeft = durationSeconds;
+      renderTime();
+      if (countdownId) clearInterval(countdownId);
+      countdownId=setInterval(()=>{
+        timeLeft--; renderTime();
+        if (timeLeft < 0) {
+          clearInterval(countdownId);
+          timerEl.textContent="💥 BOOM!";
+          msgEl.textContent="Too late! The bomb exploded!";
+          doFlash();
+        }
+      },1000);
+    }
+
+  function normalise(s){
+  return (s || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function isCorrect(key, entered){
+  const value = normalise(entered);
+  return answers[key].some(a => normalise(a) === value);
+}
+
+function checkCode(){
+  const a1 = document.getElementById('q1').value;
+  const a2 = document.getElementById('q2').value;
+  const a3 = document.getElementById('q3').value;
+
+  const ok1 = isCorrect("q1", a1);
+  const ok2 = isCorrect("q2", a2);
+  const ok3 = isCorrect("q3", a3);
+
+  if (ok1 && ok2 && ok3) {
+    clearInterval(countdownId);
+    timerEl.textContent = "✅ SAFE";
+    msgEl.textContent = "All answers correct — ultrasound image unlocked!";
+    stopAllMusic(); doFlash();
+    setTimeout(()=>{ window.location.href = nextUrl; }, 900);
+  } else {
+    // Helpful feedback (optional)
+    const wrong = [
+      !ok1 ? "Q1" : null,
+      !ok2 ? "Q2" : null,
+      !ok3 ? "Q3" : null
+    ].filter(Boolean).join(", ");
+
+    msgEl.textContent = `❌ Not quite — check: ${wrong}`;
+    doFlash(120);
+  }
+}
+   document.getElementById('deactivateBtn').addEventListener('click', checkCode);
+
+["q1","q2","q3"].forEach(id=>{
+  document.getElementById(id).addEventListener('keyup', (e)=>{
+    if (e.key === 'Enter') checkCode();
+  });
+});
+
+    ctaBtn.addEventListener('click', () => {
+      setStatus("Arming…");
+      ensureCtx();
+      unlockPing();
+      startProceduralBed();
+      loadAndStartMP3();
+      startCountdown();
+      overlay.style.display = 'none';
+    });
+  </script>
+</body>
+</html>
