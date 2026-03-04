@@ -51,9 +51,9 @@
     <div id="timer">03:00</div>
     <p style="color:var(--text)">Enter the deactivation code below to secure the area.</p>
     <div style="max-width:520px;margin:0 auto;">
-  <input id="q1" type="text" placeholder="Q1: Identify the most likely diagnosis" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-  <input id="q2" type="text" placeholder="Q2: What is the main anatomical structure involved?" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-  <input id="q3" type="text" placeholder="Q3: What is the anatomical term for the fleshy mound at the base of the thumb?" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+  <input id="q1" type="text" placeholder="Q1: What is the main anatomical structure involved?" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+  <input id="q2" type="text" placeholder="Q2: Where does the structure insert?" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+  <input id="q3" type="text" placeholder="Q3: What is the common name for this pathology?" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
 </div>
 <button id="deactivateBtn">Submit answers</button>
     <p id="message"></p>
@@ -61,9 +61,9 @@
   <script>
     let durationSeconds = 120;
     const answers = {
-  q1: ["carpal tunnel", "carpal tunnel syndrome"],
-  q2: ["median nerve", "the median nerve"],
-  q3: ["thenar eminence"]
+  q1: ["patellar tendon", "patella tendon", "patella ligament", "patellar ligament"],
+  q2: ["tibial tuberosity", "tibia tuberosity", "tibia tubercle", "tibial tubercle"],
+  q3: ["jumpers knee", "jumper's knee", "patellar tendinopathy", "patella tendinopathy", "patella tendinitis", "patellar tendinitis"]
 };
     const nextUrl = "/success.html";
     const localMusic = "audio/countdown.mp3";
